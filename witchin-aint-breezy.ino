@@ -31,6 +31,8 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 float baseYaw;
 float prevYaw = 0;
+float basePitch;
+float prevPitch = 0;
 
 
 void setup() {
@@ -136,6 +138,7 @@ void loop() {
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
       baseYaw = ypr[0] * 180/M_PI;  // [-180, 180]
+      basePitch = ypr[1] * 180/M_PI;  // [-10, 10]
     }
 
   } else if (sensorMode == 1) {
@@ -170,15 +173,16 @@ void loop() {
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-      float yaw = ypr[0] * 180/M_PI - baseYaw;  // [-180, 180]
+
+      // X. Yaw shit
+      float yaw = (baseYaw - ypr[0] * 180/M_PI) * 1.5;  // [-180, 180]
       if (yaw < -180) { yaw += 360; }   // weird lower limit
       if (yaw > 180) { yaw -= 360; }    // weird upper limit
 
-
-      float tolerance = 5.0;
+      float tolerance = 3.0;
+      // only move if there is enough change...
       if (yaw < prevYaw - tolerance || yaw > prevYaw + tolerance) {
         float botTargetAngle = map(yaw, -180, 180, 0, 180);
-
 
         botServo.write(botTargetAngle);
         delay(15);
@@ -188,12 +192,23 @@ void loop() {
       Serial.print("yaw:\t");
       Serial.print(yaw);
 
-//      Serial.print("ypr\t");
-//      Serial.print(ypr[0] * 180/M_PI);
-//      Serial.print("\t");
-//      Serial.print(ypr[1] * 180/M_PI);
-//      Serial.print("\t");
-//      Serial.print(ypr[2] * 180/M_PI);
+      // Y. Pitch shit [-10, 10]
+      float pitch = (basePitch - ypr[1] * 180/M_PI);  // [-180, 180]
+      if (pitch < -10) { pitch += 20; }   // weird lower limit
+      if (pitch > 10) { pitch -= -20; }    // weird upper limit
+
+      float pitchTolerance = 1.0;
+      // only move if there is enough change...
+      if (pitch < prevPitch - pitchTolerance || pitch > prevPitch + pitchTolerance) {
+        float topTargetAngle = map(pitch, -10, 10, 0, 180);
+
+        topServo.write(topTargetAngle);
+        delay(15);
+        prevPitch = pitch;
+      }
+
+      Serial.print("pitch:\t");
+      Serial.print(pitch);
     }
 
   } else {
